@@ -146,8 +146,9 @@ func (r *resource) getMetrics() []byte {
 //
 func (r *resource) pushMetrics(metrics []byte, dst string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	// postURL := fmt.Sprintf(r.pushGatewayURL, dst) + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
+	postURL := r.pushGatewayURL + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
 
-	postURL := fmt.Sprintf(r.pushGatewayURL, dst) + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
 	if dummy {
 		printMutex.Lock()
 		defer printMutex.Unlock()
@@ -180,7 +181,7 @@ func (r *resource) pushMetrics(metrics []byte, dst string, wg *sync.WaitGroup) {
 		}).Error("Failed to read response body while pushing metrics.")
 	}
 
-	if resp.StatusCode != http.StatusAccepted {
+	if resp.StatusCode != 200 {
 		logger.WithFields(logrus.Fields{
 			"body":          string(body),
 			"status":        resp.StatusCode,

@@ -188,7 +188,6 @@ func parseConfig(data []byte) (*pusherConfig, error) {
 		}
 
 		res.resURL = fmt.Sprintf("%s://%s:%d/%s", scheme, res.host, res.port, res.path)
-
 		p.resources[resName] = res
 	}
 
