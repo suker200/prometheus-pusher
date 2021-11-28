@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"os"
 	"strings"
-
 	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
@@ -22,6 +21,11 @@ type routeMap struct {
 func newRouteMap(file string, dr string) *routeMap {
 	m := iradix.New()
 
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		r := &routeMap{m, strings.Split(dr, ",")}
+		return r
+	}
+	
 	fd, err := os.Open(file)
 	if err != nil {
 		logger.Fatalf("Failed to parse route map %s - %s", file, err.Error())

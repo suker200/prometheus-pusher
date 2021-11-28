@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
-
+	"strconv"
 	"github.com/pelletier/go-toml"
 )
 
@@ -15,6 +15,10 @@ import (
 //
 func concatConfigFiles(path string) ([]byte, error) {
 	var config []byte
+
+	if runtime != "local" {
+		return config, nil
+	}
 
 	pathCheck, err := os.Open(path)
 	if err != nil {
@@ -85,111 +89,132 @@ func parseConfig(data []byte) (*pusherConfig, error) {
 		resources:    make(map[string]*resourceConfig),
 	}
 
-	rd := bytes.NewReader(data)
-	t, err := toml.LoadReader(rd)
-	if err != nil {
-		return nil, err
-	}
+	if runtime != "local" {
+		p.pushGatewayURL = os.Getenv("PUSH_GATEWAY_URL")
+		interval, _ := strconv.Atoi(os.Getenv("PUSH_GATEWAY_INTERVAL"))
+		p.pushInterval = time.Duration(interval) * time.Second
 
-	envLabelLabels := make([]interface{}, 0)
-	envLabelsSet := false
-	if t.Has("default_env_labels") && t.Has("default_env_labels.env_labels") {
-		envLabelLabels = append(envLabelLabels, t.Get("default_env_labels.env_labels").([]interface{})...)
-		envLabelsSet = true
-	}
-	if t.Has("service_env_labels") && t.Has("service_env_labels.env_labels") {
-		envLabelLabels = append(envLabelLabels, t.Get("service_env_labels.env_labels").([]interface{})...)
-		envLabelsSet = true
-	}
-
-	if envLabelsSet {
-		envLabelsMap := make(map[string]string)
-		for _, label := range envLabelLabels {
-			strLabel := label.(string)
-			val := os.Getenv(strLabel)
-			if len(val) != 0 {
-				envLabelsMap[strings.ToLower(strLabel)] = val
-				logger.Debugf("Got additional ENV label %s with value %s", strings.ToLower(strLabel), val)
-			}
-		}
-		p.envLabels = envLabelsMap
-	}
-
-	if t.Has("config.pushgateway_url") {
-		p.pushGatewayURL = t.Get("config.pushgateway_url").(string)
-	} else {
-		p.pushGatewayURL = "http://localhost:9091/metrics"
-	}
-
-	if t.Has("config.push_interval") {
-		p.pushInterval = time.Duration(t.Get("config.push_interval").(int64)) * time.Second
-	}
-
-	if t.Has("config.route_map") {
-		p.routeMap = t.Get("config.route_map").(string)
-	}
-
-	if t.Has("config.default_route") {
-		p.defaultRoute = t.Get("config.default_route").(string)
-	}
-
-	for _, resName := range t.Keys() {
-		if resName == "config" || resName == "default_env_labels" || resName == "service_env_labels" {
-			continue
-		}
+		port, _ := strconv.Atoi(os.Getenv("PUSH_GATEWAY_RESOURCE_PORT"))
 
 		res := &resourceConfig{
 			pushGatewayURL: p.pushGatewayURL,
 			defaultRoute:   p.defaultRoute,
 			resURL:         "",
 			host:           "localhost",
-			port:           0,
+			port:           port,
 			ssl:            false,
 			path:           "metrics",
 			routeMap:       p.routeMap,
 		}
+		res.resURL = fmt.Sprintf("%s://%s:%d/%s", "http", res.host, res.port, res.path)
+		p.resources[runtime] = res
+	} else {
+		rd := bytes.NewReader(data)
+		t, err := toml.LoadReader(rd)
+		if err != nil {
+			return nil, err
+		}
 
-		if t.Has(resName + ".port") {
-			res.port = int(t.Get(resName + ".port").(int64))
+		envLabelLabels := make([]interface{}, 0)
+		envLabelsSet := false
+		if t.Has("default_env_labels") && t.Has("default_env_labels.env_labels") {
+			envLabelLabels = append(envLabelLabels, t.Get("default_env_labels.env_labels").([]interface{})...)
+			envLabelsSet = true
+		}
+		if t.Has("service_env_labels") && t.Has("service_env_labels.env_labels") {
+			envLabelLabels = append(envLabelLabels, t.Get("service_env_labels.env_labels").([]interface{})...)
+			envLabelsSet = true
+		}
+
+		if envLabelsSet {
+			envLabelsMap := make(map[string]string)
+			for _, label := range envLabelLabels {
+				strLabel := label.(string)
+				val := os.Getenv(strLabel)
+				if len(val) != 0 {
+					envLabelsMap[strings.ToLower(strLabel)] = val
+					logger.Debugf("Got additional ENV label %s with value %s", strings.ToLower(strLabel), val)
+				}
+			}
+			p.envLabels = envLabelsMap
+		}
+
+		if t.Has("config.pushgateway_url") {
+			p.pushGatewayURL = t.Get("config.pushgateway_url").(string)
 		} else {
-			logger.Fatalf("missing port for resource '%s', exiting", resName)
-			continue
+			p.pushGatewayURL = "http://localhost:9091/metrics"
 		}
 
-		if t.Has(resName + ".pushgateway_url") {
-			res.pushGatewayURL = t.Get(resName + ".pushgateway_url").(string)
+		if t.Has("config.push_interval") {
+			p.pushInterval = time.Duration(t.Get("config.push_interval").(int64)) * time.Second
 		}
 
-		if t.Has(resName + ".default_route") {
-			res.defaultRoute = t.Get(resName + ".default_route").(string)
+		if t.Has("config.route_map") {
+			p.routeMap = t.Get("config.route_map").(string)
 		}
 
-		if t.Has(resName + ".host") {
-			res.host = t.Get(resName + ".host").(string)
+		if t.Has("config.default_route") {
+			p.defaultRoute = t.Get("config.default_route").(string)
 		}
 
-		if t.Has(resName + ".ssl") {
-			res.ssl = t.Get(resName + ".ssl").(bool)
-		}
 
-		if t.Has(resName + ".path") {
-			res.path = t.Get(resName + ".path").(string)
-			res.path = strings.TrimPrefix(res.path, "/")
-		}
+		for _, resName := range t.Keys() {
+			if resName == "config" || resName == "default_env_labels" || resName == "service_env_labels" {
+				continue
+			}
 
-		if t.Has(resName + ".route_map") {
-			res.routeMap = t.Get(resName + ".path").(string)
-		}
-		var scheme string
-		if res.ssl {
-			scheme = "https"
-		} else {
-			scheme = "http"
-		}
+			res := &resourceConfig{
+				pushGatewayURL: p.pushGatewayURL,
+				defaultRoute:   p.defaultRoute,
+				resURL:         "",
+				host:           "localhost",
+				port:           0,
+				ssl:            false,
+				path:           "metrics",
+				routeMap:       p.routeMap,
+			}
 
-		res.resURL = fmt.Sprintf("%s://%s:%d/%s", scheme, res.host, res.port, res.path)
-		p.resources[resName] = res
+			if t.Has(resName + ".port") {
+				res.port = int(t.Get(resName + ".port").(int64))
+			} else {
+				logger.Fatalf("missing port for resource '%s', exiting", resName)
+				continue
+			}
+
+			if t.Has(resName + ".pushgateway_url") {
+				res.pushGatewayURL = t.Get(resName + ".pushgateway_url").(string)
+			}
+
+			if t.Has(resName + ".default_route") {
+				res.defaultRoute = t.Get(resName + ".default_route").(string)
+			}
+
+			if t.Has(resName + ".host") {
+				res.host = t.Get(resName + ".host").(string)
+			}
+
+			if t.Has(resName + ".ssl") {
+				res.ssl = t.Get(resName + ".ssl").(bool)
+			}
+
+			if t.Has(resName + ".path") {
+				res.path = t.Get(resName + ".path").(string)
+				res.path = strings.TrimPrefix(res.path, "/")
+			}
+
+			if t.Has(resName + ".route_map") {
+				res.routeMap = t.Get(resName + ".path").(string)
+			}
+			var scheme string
+			if res.ssl {
+				scheme = "https"
+			} else {
+				scheme = "http"
+			}
+
+			res.resURL = fmt.Sprintf("%s://%s:%d/%s", scheme, res.host, res.port, res.path)
+			p.resources[resName] = res
+		}
 	}
-
 	return p, nil
 }
