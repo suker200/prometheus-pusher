@@ -72,7 +72,8 @@ func newMetric(m *metrics, idx int, rm *routeMap, ts *[]byte, cfg *pusherConfig)
 			// In case something goes wrong let's fallback to original solution
 			return &metric{
 				dsts:  rm.route(m.bytes[m.dBrd[idx][0]:m.dBrd[idx][1]]),
-				bytes: bytes.Join(append(mf, *ts), []byte{' '}),
+				// bytes: bytes.Join(append(mf, *ts), []byte{' '}),
+				bytes: bytes.Join(mf, []byte{' '}),
 			}
 			break
 		}
@@ -86,7 +87,8 @@ func newMetric(m *metrics, idx int, rm *routeMap, ts *[]byte, cfg *pusherConfig)
 				sample.Metric[model.LabelName(labelName)] = model.LabelValue(labelValue)
 			}
 		}
-		metric := fmt.Sprintf("%s %s %s", sample.Metric, sample.Value, *ts)
+		// metric := fmt.Sprintf("%s %s %s", sample.Metric, sample.Value, *ts)
+		metric := fmt.Sprintf("%s %s", sample.Metric, sample.Value)
 		buffer.WriteString(metric)
 	}
 
