@@ -8,8 +8,24 @@ import (
 	"strings"
 	"time"
 	"strconv"
+	"regexp"
+	"math/rand"
 	"github.com/pelletier/go-toml"
 )
+
+// generate random string
+func randomString() string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
+	    "abcdefghijklmnopqrstuvwxyz" +
+	    "0123456789")
+	length := 4
+	var b strings.Builder
+	for i := 0; i < length; i++ {
+	    b.WriteRune(chars[rand.Intn(len(chars))])
+	}
+	return b.String()
+}
 
 // reads all config files into []byte
 //
@@ -108,6 +124,22 @@ func parseConfig(data []byte) (*pusherConfig, error) {
 		}
 		res.resURL = fmt.Sprintf("%s://%s:%d/%s", "http", res.host, res.port, res.path)
 		p.resources[runtime] = res
+
+		envs := os.Environ()
+		envLabelsMap := make(map[string]string)
+		reReplace := regexp.MustCompile("PROMETHEUS_LABEL_")
+
+		for _, e := range envs {
+			if match, _ := regexp.Match("^PROMETHEUS_LABEL_.*", []byte(e)); match {
+				key := fmt.Sprintf("%s", reReplace.ReplaceAll([]byte(strings.Split(e, "=")[0]), []byte("")))
+				val := strings.Split(e, "=")[1]
+				envLabelsMap[strings.ToLower(key)] = val
+			}
+		}
+
+		envLabelsMap["container"] = randomString()
+
+		p.envLabels = envLabelsMap
 	} else {
 		rd := bytes.NewReader(data)
 		t, err := toml.LoadReader(rd)
