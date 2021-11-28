@@ -61,7 +61,12 @@ func init() {
 		logLevel = logrus.DebugLevel
 	}
 
-	hostname = fqdn.Get()
+	if runtime != "local" {
+		hostname = os.Getenv("PROMETHEUS_INSTANCE_NAME")
+	} else {
+		hostname = fqdn.Get()
+	}
+	
 
 	// create logger instance
 	_, logger = sockrus.NewSockrus(sockrus.Config{
