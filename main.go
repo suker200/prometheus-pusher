@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var runtime = "local"
 // global vars
 //
 var (
@@ -32,6 +33,7 @@ var (
 )
 
 func init() {
+	runtime = os.Getenv("RUNTIME")
 	// parse arguments
 	flag.StringVar(&cfgPath, "config", defaultConfPath,
 		"Config file or directory. If directory is specified then all "+
