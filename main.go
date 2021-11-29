@@ -62,7 +62,7 @@ func init() {
 	}
 
 	if runtime != "local" {
-		hostname = os.Getenv("PROMETHEUS_INSTANCE_NAME")
+		hostname = fmt.Sprintf("%s-%s", os.Getenv("PROMETHEUS_INSTANCE_NAME"), randomString())
 	} else {
 		hostname = fqdn.Get()
 	}

@@ -137,7 +137,7 @@ func parseConfig(data []byte) (*pusherConfig, error) {
 			}
 		}
 
-		envLabelsMap["container"] = randomString()
+		// envLabelsMap["container"] = randomString()
 
 		p.envLabels = envLabelsMap
 	} else {
