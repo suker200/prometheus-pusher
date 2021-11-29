@@ -148,6 +148,10 @@ func (r *resource) pushMetrics(metrics []byte, dst string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	// postURL := fmt.Sprintf(r.pushGatewayURL, dst) + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
 	postURL := r.pushGatewayURL + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
+	if runtime != "local" {
+		// Using for cleanup metrics at pushgateway when exit
+		_ = os.WriteFile("/tmp/pushurl", []byte(postURL), 0644)	
+	}	
 
 	if dummy {
 		printMutex.Lock()
