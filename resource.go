@@ -166,7 +166,16 @@ func (r *resource) pushMetrics(metrics []byte, dst string, wg *sync.WaitGroup) {
 	}).Debug("Pushing metrics.")
 
 	data := bytes.NewReader(metrics)
-	resp, err := r.httpClient.Post(postURL, "text/plain", data)
+
+
+	req, _ := http.NewRequest("POST", postURL, data)
+
+	if os.Getenv("BASIC_USER") != "" && os.Getenv("BASIC_PASSWORD") != "" {
+		req.SetBasicAuth(os.Getenv("BASIC_USER"), os.Getenv("BASIC_PASSWORD"))
+	}
+
+	resp, err := r.httpClient.Do(req)
+	// resp, err := r.httpClient.Post(postURL, "text/plain", data)
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"endpoint_url": postURL,
