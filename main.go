@@ -106,6 +106,7 @@ func main() {
 	go func() {
 		for s := range resources.sig {
 			logger.Infof("Received %s signal, will shut down", s)
+			resources.cleanup()
 			resources.shutdown()
 			return
 		}
@@ -119,6 +120,7 @@ func main() {
 			resources.process(pusherCfg)
 		case <-resources.stop():
 			logger.Info("Resources processing stopped")
+			resources.cleanup()
 			os.Exit(0)
 		}
 	}
