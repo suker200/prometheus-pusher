@@ -48,13 +48,26 @@ func (rs *resources) run() <-chan time.Time {
 	return rs.ticker.C
 }
 
-func (rs *resources) stop() <-chan struct{} {
+func (rs *resources) stop() <-chan struct{} {	
 	return rs.exit
 }
 
 func (rs *resources) shutdown() {
 	rs.ticker.Stop()
 	rs.exit <- struct{}{}
+}
+
+func (rs *resources) cleanup() {
+	for _, r := range rs.rs {
+		postURL := r.pushGatewayURL + fmt.Sprintf("/job/%s/instance/%s", r.name, hostname)
+		req, _ := http.NewRequest("DELETE", postURL, nil)
+
+		if os.Getenv("BASIC_USER") != "" && os.Getenv("BASIC_PASSWORD") != "" {
+			req.SetBasicAuth(os.Getenv("BASIC_USER"), os.Getenv("BASIC_PASSWORD"))
+		}
+
+		r.httpClient.Do(req)		
+	}
 }
 
 type resource struct {
