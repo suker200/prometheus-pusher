@@ -133,8 +133,29 @@ func (r *resources) eventVMWatching() {
 				if err := myProcess.Signal(syscall.SIGTERM); err != nil {
 					fmt.Println(err)
 				}
+				break
 			}
 			time.Sleep(time.Duration(2) * time.Second)
 		}
 	}
 }
+
+func (r *resources) eventPrempVMWatching() {
+	httpClient, _ := NewRetryHttpClient("", "")
+	pid := os.Getpid()
+
+	myProcess, _ := os.FindProcess(pid)
+
+	for {
+		if resp, err := httpClient.Do(context.Background(), nil, "http://metadata.google.internal/computeMetadata/v1/instance/preempted", map[string]string{"Metadata-Flavor": "Google"}, "GET"); err == nil {
+			if string(resp) != "FALSE" {
+				if err := myProcess.Signal(syscall.SIGTERM); err != nil {
+					fmt.Println(err)
+				}
+				break
+			}
+			time.Sleep(time.Duration(2) * time.Second)
+		}
+	}
+}
+

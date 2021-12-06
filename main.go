@@ -116,6 +116,10 @@ func main() {
 		resources.eventVMWatching()
 	}()
 
+	go func() {
+		resources.eventPrempVMWatching()
+	}()
+	
 	resources.process(pusherCfg)
 
 	for {
